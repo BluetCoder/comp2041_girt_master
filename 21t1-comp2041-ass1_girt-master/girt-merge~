@@ -1,0 +1,53 @@
+#!/bin/dash
+if ! [ -d ".girt" ]; then
+    1>&2 echo "girt-merge: error: girt repository directory .girt not found"
+    exit 1
+fi
+# Find the commit we're up to
+inc=0
+while [ $inc -ge 0 ];
+do
+    if [ -d ".girt/.commit.$inc" ]; then
+        inc=$((inc + 1))
+    else
+        break
+    fi
+done
+# Error messages
+inc=$((inc - 1))
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+if ! [ -d ".girt/.commit.$inc" ]; then
+    1>&2 echo "girt-merge: error: this command can not be run until after the first commit"
+    exit 1
+elif [ "$#" -eq 1 ]; then
+    1>&2 echo "girt-merge: error: empty commit message"
+    exit 1
+elif [ "$#" -ne 3 ]; then
+    1>&2 echo "usage: girt-merge <branch|commit> -m message"
+    exit 1
+elif [ "$2" != "-m" ]; then
+    1>&2 echo "usage: girt-merge <branch|commit> -m message"
+    exit 1
+elif ! [ -d ".girt/branches/$1" ]; then
+    1>&2 echo "girt-merge: error: unknown branch '$1'"
+    exit 1
+fi
+merge_branch_commit_num=$(head -n 1 ".girt/branches/$1/branch_commit.txt")
+current_branch_commit_num=$(head -n 1 ".girt/branches/$current_branch/branch_commit.txt")
+total=$(echo "$merge_branch_commit_num $current_branch_commit_num - p" | dc)
+if [ $total -lt 0 ]; then
+    1>&2 echo "girt-merge: error: can not merge"
+    exit 1
+fi
+
+# Merge
+
+commit_directory_log=".girt/logs/commit$merge_branch_commit_num.txt"
+while read file_name; do
+    cp ".girt/.commit.$merge_branch_commit_num/$file_name" "$file_name"
+done < "$commit_directory_log"
+commit_message=$(grep -E "^$merge_branch_commit_num" ".girt/logs/overall_commit_history.txt")
+commit_history=".girt/branches/$current_branch/commit_history.txt"
+echo "$commit_message" >> $commit_history
+sort -nr $commit_history -o $commit_history
+echo "Fast-forward: no commit created"

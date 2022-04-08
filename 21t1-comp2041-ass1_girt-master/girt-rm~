@@ -1,0 +1,156 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+girt_directory=".girt"
+if ! [ -d "$girt_directory" ]; then
+    1>&2 echo "girt-commit: error: girt repository directory .girt not found"
+    exit 1
+fi
+
+# Check if arguments are correct
+force=false
+cached=false
+directory=".girt/.commit."
+
+#Checks for force or cached
+if [ "$1" = "--force" ]; then
+    force=true
+    if [ "$2" = "--cached" ]; then
+        cached=true
+    fi
+elif [ "$1" = "--cached" ]; then
+    cached=true
+fi
+#Checks if arguments are correct
+for arguments in "$@"
+do
+    bad_command=$(echo "${arguments}" | grep -E "^-")
+    if [ "$bad_command" = "" ]; then
+        continue
+    elif [ "$bad_command" = "--cached" ] || [ "$bad_command" = "--force" ] ; then
+        continue
+    else
+        1>&2 echo "usage: girt-rm [--force] [--cached] <filenames>"
+        exit 1
+    fi
+done
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+index_directory=".girt/index/$current_branch"
+#Check if files are in index
+for files in "$@"
+do
+    if [ "$files" = "--cached" ] || [ "$files" = "--force" ] ; then
+        continue
+    elif ! [ -e "$index_directory/$files" ]; then
+        1>&2 echo "girt-rm: error: '$files' is not in the girt repository"
+        exit 1
+    fi
+done
+
+# Remove files according to the given arguments
+index_log="$index_directory/index.txt"
+# --force or --force --cached
+if [ $force = true ]; then
+    for files in "$@"
+    do
+        if [ "$files" = "--cached" ] || [ "$files" = "--force" ] ; then
+            continue
+        else
+            rm "$index_directory/$files"
+            sed -i "/^${files}$/d" $index_log
+            if [ $cached = false ]; then
+                if [ -e $files ]; then
+                    rm $files
+                fi
+            fi
+        fi
+    done
+# --cached argument
+elif [ $cached = true ]; then
+    # Check files if they are different to index, repository and current directory
+    inc=0
+    while [ $inc -ge 0 ];
+    do
+        if [ -d "$girt_directory/.commit.$inc" ]; then
+            inc=$((inc + 1))
+        else
+            break
+        fi
+    done
+    inc=$((inc - 1))
+    for files in "$@"
+    do
+        if [ "$files" = "--cached" ] || [ "$files" = "--force" ] ; then
+            continue
+        elif ! [ -e $files ] ; then
+            continue
+        elif ! [ -d "$girt_directory/.commit.$inc" ] ; then
+            continue
+        elif ! [ -e "$girt_directory/.commit.$inc/$files" ] ; then
+            continue
+        else
+            diff_directory_index=$(diff "$files" "$index_directory/$files")
+            diff_commit_index=$(diff "$index_directory/$files" "$girt_directory/.commit.$inc/$files")
+            if [ "$diff_directory_index" != "" ] && [ "$diff_commit_index" != "" ]; then
+                1>&2 echo "girt-rm: error: '$files' in index is different to both to the working file and the repository"
+                exit 1
+            fi
+        fi
+    done
+    for files in "$@"
+    do
+        if [ "$files" = "--cached" ] || [ "$files" = "--force" ] ; then
+            continue
+        else
+            rm "$index_directory/$files"
+            sed -i "/^${files}$/d" $index_log
+        fi
+    done
+# No --cached or --force
+else 
+    inc=0
+    while [ $inc -ge 0 ];
+    do
+        if [ -d "$girt_directory/.commit.$inc" ]; then
+            inc=$((inc + 1))
+        else
+            break
+        fi
+    done
+    inc=$((inc - 1))
+    # Checks if files can be removed
+    if ! [ -d "$girt_directory/.commit.$inc" ] ; then
+        1>&2 echo "girt-rm: error: '$1' has staged changes in the index"
+        exit 1
+    fi
+
+    for files in "$@"
+    do
+        if ! [ -e "$girt_directory/.commit.$inc/$files" ] ; then
+            1>&2 echo "girt-rm: error: '$files' has staged changes in the index"
+            exit 1
+        else
+            diff_directory_index=$(diff "$files" "$index_directory/$files")
+            diff_commit_index=$(diff "$index_directory/$files" "$girt_directory/.commit.$inc/$files")
+            if [ "$diff_directory_index" != "" ] && [ "$diff_commit_index" != "" ]; then
+                1>&2 echo "girt-rm: error: '$files' in index is different to both to the working file and the repository"
+                exit 1
+            elif [ "$diff_directory_index" != "" ] ; then
+                1>&2 echo "girt-rm: error: '$files' in the repository is different to the working file"
+                exit 1
+            elif [ "$diff_commit_index" != "" ] ; then
+                1>&2 echo "girt-rm: error: '$files' has staged changes in the index"
+                exit 1
+            fi
+        fi
+    done
+    # Remove files from both index and current directory
+    for files in "$@"
+    do
+        rm "$index_directory/$files"
+        sed -i "/^${files}$/d" $index_log
+        if [ -e "$files" ] ; then
+            rm "$files"
+        fi 
+    done
+fi
+

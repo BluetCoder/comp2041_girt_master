@@ -1,0 +1,73 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+if ! [ -d ".girt" ]; then
+    1>&2 echo "girt-branch: error: girt repository directory .girt not found"
+    exit 1
+fi
+# Find commit number by looking at past commit directories
+inc=0
+while [ $inc -ge 0 ];
+do
+    if [ -d ".girt/.commit.$inc" ]; then
+        inc=$((inc + 1))
+    else
+        break
+    fi
+done
+inc=$((inc - 1))
+
+if ! [ -d ".girt/.commit.$inc" ]; then
+    1>&2 echo "girt-branch: error: this command can not be run until after the first commit"
+    exit 1
+fi
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+# Lists branches
+if [ "$#" -eq 0 ]; then
+    branches_directory=".girt/branches/*"
+    for branch in $branches_directory;
+    do
+        branch_name=$(echo "${branch}"| cut -d "/" -f3)
+        echo "$branch_name"
+    done
+# Deletes Branches
+elif [ "$1" = "-d" ]; then
+    if [ "$#" -gt 2 ]; then
+        1>&2 echo "usage: girt-branch [-d] <branch>"
+        exit 1
+    fi
+    check_branch_name=$(echo "$2"| grep -E "^-")
+    if [ "$check_branch_name" != "" ]; then
+        1>&2 echo "usage: girt-branch [-d] <branch>"
+        exit 1
+    elif [ $2 = "master" ]; then
+        1>&2 echo "girt-branch: error: can not delete branch 'master'"
+        exit 1
+    elif ! [ -d ".girt/branches/$2" ]; then
+        1>&2 echo "girt-branch: error: branch '$2' doesn't exist"
+        exit 1
+    else
+        rm -r ".girt/branches/$2"
+        echo "Deleted branch '$2'"
+        rm -r ".girt/index/$2"
+    fi
+# Makes branch or gives out error message
+else
+    if [ "$#" -gt 1 ]; then
+        1>&2 echo "usage: girt-branch [-d] <branch>"
+        exit 1
+    fi
+    check_branch_name=$(echo "$1"| grep -E "^-")
+    if [ "$check_branch_name" != "" ]; then
+        1>&2 echo "usage: girt-branch [-d] <branch>"
+        exit 1
+    elif [ -d ".girt/branches/$1" ]; then
+        1>&2 echo "girt-branch: error: branch '$1' already exists"
+        exit 1
+    else
+        cp -r ".girt/branches/$current_branch" ".girt/branches/$1"
+        current_branch_commit_num=$(head -n 1 ".girt/branches/$current_branch/branch_commit.txt")
+        echo $current_branch_commit_num > ".girt/branches/$1/branch_commit.txt"
+        cp -r ".girt/index/$current_branch" ".girt/index/$1"
+    fi
+    sort ".girt/branches/$1/branch_commit.txt" -o ".girt/branches/$1/branch_commit.txt"
+fi    

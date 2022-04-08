@@ -1,0 +1,26 @@
+DATE        START   END     ACTIVITY    COMMENTS
+26/03/21	00:00	00:53	coding	    Wrote some code and comments to start subset 0. Code does not work at all.
+28/03/21	12:00	13:01	coding	    Wrote code in girt-init, girt-add and girt-commit. girt-init and girt-add have basic functionality.
+28/03/21	14:15	15:05	coding	    Wrote code in girt-commit. It saves files in a folder. It also keeps a log of the commit message and number.
+28/03/21	20:00	22:39   coding      Wrote code for Subset 0. Code works according to the example given in the assignment spec Subset 0.
+31/03/21	01:00	02:21   debugging   Write and changed code to pass Subset 0 autotest
+31/03/21    21:00   22:56   coding      Coded for girt-commit -a -m message subset 1
+01/04/21    02:00   03:00   coding      Wrote code for girt-rm. Able to check if .girt directory exists, look for --force and -- cached and check if there are any incorrect arguments, check if files are in index
+01/04/21    13:00   15:14   coding      Wrote code for girt-rm. Able to delete files in index and in current directory if --force is used.
+01/04/21    22:30  00:00   coding      Wrote code for girt-rm. Able to delete files in index --cached is used.
+02/04/21    00:00  00:28   Debugging      Debugged girt-commit. Was unable to pass subset1_14 autotest because it checking for a file that did not exist in repository.
+02/04/21    02:00   02:33        Debugging   Debugged girt-add. Added code to check if files can be added into index and to delete from index if file is removed from current directory.
+02/04/21    02:33   02:55        Debugging   Debugged girt-commit. Fixed bug where before it will say nothing to commit if a file has been removed.
+02/04/21    02:55   03:16        Coding   Coded for girt-rm. Implemented feature for girt-rm <filenames>.
+03/04/21    00:15   04:37        Coding   Coded for girt-status. Basic functionality completed. Passed all tests for subset 1. girt-status may still have bugs due to edge cases.
+05/04/21    00:54   02:57   coding  Coded for girt-branch. Basic functionality completed and able to pass Subset2_1 autotest. Edge cases may have been missed.
+05/04/21    03:34   05:26   coding  Coded for girt-checkout. Able to check for errors. Need to debug basic functionality
+05/04/21    19:30   20:09   testing  Completed test00.sh and test01.sh. test00.sh tests for all of girt-init and test 01.sh tests for all of girt-add
+05/04/21    20:30   22:15   testing  Completed test02.sh, test03.sh, test04. test02 tests girt-commit, test03 tests girt-log, test04 tests girt-log. test03 has a bug.
+06/04/21    00:00   00:27   testing  Completed test05.sh. test05 tests girt-commit -a.
+06/04/21    01:00   01:34   debugging  Instead of having a copy of index log in the commit directory, it saved in logs instead. Changing code to implement for girt-checkout
+06/04/21    02:00   05:10   coding  Coded for girt-checkout. Mostly working with minor bugs
+06/04/21    05:11   06:00   debugging  Accounted for branch changing in girt-log
+06/04/21    07:00   08:17   style  Commented and deleted notes in shell script. Made script look presentable
+
+#CHECK FOR ARGUMENTS -M -A

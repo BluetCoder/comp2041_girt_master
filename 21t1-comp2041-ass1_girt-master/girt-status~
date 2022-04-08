@@ -1,0 +1,106 @@
+#!/bin/dash
+
+# Check if .girt directory exist or else print error message
+girt_directory=".girt"
+if ! [ -d "$girt_directory" ]; then
+    1>&2 echo "girt-status: error: girt repository directory .girt not found"
+    exit 1
+fi
+
+
+# Find the commit we're up to
+inc=0
+while [ $inc -ge 0 ];
+do
+    if [ -d ".girt/.commit.$inc" ]; then
+        inc=$((inc + 1))
+    else
+        break
+    fi
+done
+inc=$((inc - 1))
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+# Get all the files to be shown on git-status into a file
+# File will be read
+no_repository=false
+cp ".girt/index/$current_branch/index.txt" ".girt/files_for_status.txt"
+if [ -d ".girt/.commit.$inc" ]; then
+    while read file_name; do
+        more_files=$(grep -E "^$file_name$" ".girt/files_for_status.txt")
+        if [ "$more_files" = "" ]; then
+            echo $file_name >> ".girt/files_for_status.txt"
+        fi
+    done <".girt/logs/commit$inc.txt"
+else
+    no_repository=true
+fi
+
+for file_name in *; 
+do
+    if ! [ -f "$file_name" ]; then
+        continue
+    fi
+    more_files=$(grep -E "^$file_name$" ".girt/files_for_status.txt")
+    if [ "$more_files" = "" ]; then
+        echo $file_name >> ".girt/files_for_status.txt"
+    fi
+done
+sort ".girt/files_for_status.txt" -o ".girt/files_for_status.txt"
+items_for_status=$(wc -l ".girt/files_for_status.txt" | cut -d " " -f1)
+
+if [ "$items_for_status" = 0 ]; then
+    exit 0
+fi
+
+# Checks if files exist in current directory, index and repository
+# After that, it compares the files from current directory, index and repository if it exists
+# and prints appropriate message with file name
+while read file_name; do
+    in_index=false
+    in_directory=false
+    in_repository=false
+    if [ -e "$file_name" ]; then
+        in_directory=true
+    fi
+    if [ -e ".girt/index/$current_branch/$file_name" ]; then
+        in_index=true
+    fi
+    if [ -e ".girt/.commit.$inc/$file_name" ]; then
+        in_repository=true
+    fi
+    if [ $in_directory = true ] && [ $in_index = true ] && [ $in_repository = false ] ; then
+        diff_directory_index=$(diff "$file_name" ".girt/index/$current_branch/$file_name")
+        if [ "$diff_directory_index" != "" ] ; then
+            echo "$file_name - added to index, file changed"
+        else
+            echo "$file_name - added to index"
+        fi
+    elif [ $in_directory = false ] && [ $in_index = true ] && [ $in_repository = true ] ; then
+        echo "$file_name - file deleted"
+    elif [ $in_directory = false ] && [ $in_index = false ] && [ $in_repository = true ] ; then 
+        echo "$file_name - deleted"
+    elif [ $in_directory = true ] && [ $in_index = true ] && [ $in_repository = true ] ; then
+        diff_directory_index=$(diff "$file_name" ".girt/index/$current_branch/$file_name")
+        diff_repo_index=$(diff ".girt/index/$current_branch/$file_name" ".girt/.commit.$inc/$file_name")
+        diff_directory_repo=$(diff "$file_name" ".girt/.commit.$inc/$file_name")
+        if [ "$diff_directory_index" = "" ] && [ "$diff_repo_index" = "" ] && [ "$diff_directory_repo" = "" ] ; then
+            echo "$file_name - same as repo"
+        elif [ "$diff_directory_index" != "" ] && [ "$diff_repo_index" != "" ] && [ "$diff_directory_repo" != "" ] ; then
+            echo "$file_name - file changed, different changes staged for commit"
+        elif [ "$diff_directory_index" = "" ] && [ "$diff_repo_index" != "" ] && [ "$diff_directory_repo" != "" ] ; then
+            echo "$file_name - file changed, changes staged for commit"
+        elif [ "$diff_directory_index" != "" ] && [ "$diff_repo_index" = "" ] && [ "$diff_directory_repo" != "" ] ; then
+            echo "$file_name - file changed, changes not staged for commit"
+        fi
+    elif [ $in_directory = true ] && [ $in_index = false ] && [ $in_repository = false ] ; then
+        echo "$file_name - untracked"
+    elif [ $in_directory = true ] && [ $in_index = false ] && [ $in_repository = true ] ; then
+        echo "$file_name - untracked"
+    elif [ $in_directory = false ] && [ $in_index = true ] && [ $in_repository = false ] ; then
+        echo "$file_name - added to index, file deleted"
+    else
+        # If case has not been accounted for
+        echo "Name $file_name directory $in_directory index $in_index repo $in_repository"
+    fi
+done <".girt/files_for_status.txt"
+

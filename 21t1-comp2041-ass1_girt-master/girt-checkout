@@ -1,0 +1,89 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+if ! [ -d ".girt" ]; then
+    1>&2 echo "girt-checkout: error: girt repository directory .girt not found"
+    exit 1
+fi
+# Find commit number by looking at past commit directories
+inc=0
+while [ $inc -ge 0 ];
+do
+    if [ -d ".girt/.commit.$inc" ]; then
+        inc=$((inc + 1))
+    else
+        break
+    fi
+done
+# Check for errors and print error message accordingly
+inc=$((inc - 1))
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+if ! [ -d ".girt/.commit.$inc" ]; then
+    1>&2 echo "girt-checkout: error: this command can not be run until after the first commit"
+    exit 1
+elif [ "$#" -gt 1 ]; then
+    1>&2 echo "usage: girt-checkout <branch>"
+    exit 1
+elif ! [ -d ".girt/branches/$1" ]; then
+    1>&2 echo "girt-checkout: error: unknown branch '$1'"
+    exit 1
+elif [ "$1" = "$current_branch" ]; then
+    1>&2 echo "Already on '$1'"
+    exit 1
+fi
+echo "girt-checkout: error: Your changes to the following files would be overwritten by checkout:" > ".girt/logs/checkout_error_commit.txt"
+
+# If two branches point to the same commit number, then no changes to the files are needed.
+diff_commit_branch=$(diff ".girt/branches/$current_branch/branch_commit.txt" ".girt/branches/$1/branch_commit.txt")
+if [ "$diff_commit_branch" = "" ]; then
+    echo $1 > ".girt/logs/current_branch.txt"
+    echo "Switched to branch '$1'"
+    exit 0
+else
+    current_branch_commit=$(head -n 1 ".girt/branches/$current_branch/branch_commit.txt")
+fi
+
+# Check for files that may be overwritten and prints the error message
+overwritten=false
+while read file_name; do
+    if [ -f "$file_name" ]; then
+        diff_directory_repo=$(diff "$file_name" ".girt/.commit.$current_branch_commit/$file_name")
+        if [ "$diff_directory_repo" != "" ]; then 
+            echo "$file_name" >> ".girt/logs/checkout_error_commit.txt"
+            overwritten=true
+        fi
+    else
+        echo "$file_name" >> ".girt/logs/checkout_error_commit.txt"
+        overwritten=true
+        continue
+    fi
+done < ".girt/logs/commit$current_branch_commit.txt"
+
+if [ $overwritten = true ]; then
+    while read error_message; do
+        1>&2 echo $error_message
+    done < ".girt/logs/checkout_error_commit.txt"
+    exit 1
+fi 
+
+#Copies files from commit the branch is pointing to and deletes files that are not part of the commit.
+# Does not delete files that have not been added to the index or have been committed.
+checkout_branch_commit_num=$(head -n 1 ".girt/branches/$1/branch_commit.txt")
+commit_checkout_directory=".girt/.commit.$checkout_branch_commit_num/*"
+commit_directory_log=".girt/logs/commit$checkout_branch_commit_num.txt"
+
+while read file_name; do
+    cp ".girt/.commit.$checkout_branch_commit_num/$file_name" "$file_name"
+done < "$commit_directory_log"
+
+for file_name in *; do
+    if [ -f $file_name ]; then
+        if ! [ -e ".girt/.commit.$checkout_branch_commit_num/$file_name" ]; then
+            if [ -e ".girt/.commit.$current_branch_commit/$file_name" ] ; then
+                rm $file_name
+            fi
+        fi
+    fi
+done
+
+echo $1 > ".girt/logs/current_branch.txt"
+echo "Switched to branch '$1'"

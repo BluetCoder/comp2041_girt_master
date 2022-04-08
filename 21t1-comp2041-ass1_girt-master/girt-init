@@ -1,0 +1,28 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+if [ $# -gt 0 ]; then
+    1>&2 echo "usage: girt-init"
+    exit 1
+fi
+directory=".girt"
+if [ -d "$directory" ]; then
+    1>&2 echo "girt-init: error: .girt already exists"
+    exit 1
+else
+# Creates .girt directory and files needed
+    echo "Initialized empty girt repository in .girt"
+    mkdir $directory
+    mkdir "$directory/logs"
+    touch "$directory/logs/overall_commit_history.txt"
+    touch "$directory/logs/committed_files.txt"
+    echo "master" > "$directory/logs/current_branch.txt"
+    index_directory=".girt/index"
+    mkdir $index_directory
+    mkdir "$index_directory/master"
+    index_log="$index_directory/master/index.txt"
+    touch "$index_log"
+    mkdir "$directory/branches"
+    mkdir "$directory/branches/master"
+    touch "$directory/branches/master/commit_history.txt"
+fi
+

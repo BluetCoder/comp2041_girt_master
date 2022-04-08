@@ -1,0 +1,35 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+if ! [ -d ".girt" ]; then
+    1>&2 echo "girt-show: error: girt repository directory .girt not found"
+    exit 1
+fi
+
+# Get commit number and file to show
+commit_number=$(echo "$1" | cut -d ":" -f1)
+file_to_open=$(echo $1 | cut -d ":" -f2)
+
+commit_directory=".girt/.commit.$commit_number"
+file_path=".girt/.commit.$commit_number/$file_to_open"
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+# Look for errors from the given arguments and print error message accordingly
+if [ -z "$commit_number" ]; then
+    file_path=".girt/index/$current_branch/$file_to_open"
+    if ! [ -e "$file_path" ]; then
+        1>&2 echo "girt-show: error: '$file_to_open' not found in index"
+        exit 1
+    fi
+elif ! [ -d "$commit_directory" ]; then
+    1>&2 echo "girt-show: error: unknown commit '$commit_number'"
+    exit 1
+else 
+    file_path=".girt/.commit.$commit_number/$file_to_open"
+fi
+if ! [ -e "$file_path" ]; then
+    1>&2 echo "girt-show: error: '$file_to_open' not found in commit $commit_number"
+    exit 1
+fi
+# Read file to show and echo the lines
+while read line; do
+    echo "$line"
+done <$file_path

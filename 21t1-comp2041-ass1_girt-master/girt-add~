@@ -1,0 +1,44 @@
+#!/bin/dash
+# Check if file exist
+# Maybe check if files exists before adding them
+# Check if .girt directory exist or else print error message
+directory=".girt"
+if [ -d "$directory" ]; then
+    current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+    index_directory=".girt/index/$current_branch"
+    index_log="$index_directory/index.txt"
+    # Checks if files are valid to the add function
+    for files in "$@"
+    do
+        if ! [ -f $files ]; then
+            if ! [ -f "$index_directory/$files" ]; then
+                1>&2 echo "girt-add: error: can not open '$files'"
+                exit 1
+            fi
+        fi
+    done
+    # Adds or removes files from the index
+    for files in "$@"
+    do
+        if ! [ -f $files ]; then
+            rm "$index_directory/$files"
+            sed -i "/^${files}$/d" $index_log
+            continue
+        fi
+        added=false
+        while read to_add; do
+            if [ $to_add = $files ]; then
+                added=true
+                break
+            fi
+        done <$index_log
+        if [ $added = false ]; then
+            echo "$files" >> $index_log
+        fi
+        cp "$files" "$index_directory"
+    done
+    sort $index_log -o $index_log
+else
+   1>&2 echo "girt-add: error: girt repository directory .girt not found"
+   exit 1
+fi

@@ -1,0 +1,19 @@
+#!/bin/dash
+# Check if .girt directory exist or else print error message
+if ! [ -d ".girt" ]; then
+    1>&2 echo "girt-log: error: girt repository directory .girt not found"
+    exit 1
+fi
+if [ $# -gt 0 ]; then
+    1>&2 echo "usage: girt-log"
+    exit 1
+fi
+current_branch=$(head -n 1 ".girt/logs/current_branch.txt")
+# read commit_history.txt file and print it out
+commit_history=".girt/branches/$current_branch/commit_history.txt"
+while read line; do
+    echo "$line"
+done <$commit_history
+
+
+
